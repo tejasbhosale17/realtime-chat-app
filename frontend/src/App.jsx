@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import useAuthStore from "./store/authStore";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Chat from "./pages/Chat";
 
 function ProtectedRoute({ children }) {
   const user = useAuthStore((s) => s.user);
@@ -39,9 +40,7 @@ export default function App() {
           path="/*"
           element={
             <ProtectedRoute>
-              <div className="flex h-screen items-center justify-center bg-gray-900 text-white">
-                <p className="text-xl">Welcome! Chat coming soon...</p>
-              </div>
+              <Chat />
             </ProtectedRoute>
           }
         />
