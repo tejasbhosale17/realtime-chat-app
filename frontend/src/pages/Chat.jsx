@@ -45,6 +45,9 @@ export default function Chat() {
   );
   const [showNewChat, setShowNewChat] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const searchFilter = useChatStore((s) => s.searchFilter);
+  const setSearchFilter = useChatStore((s) => s.setSearchFilter);
   const { isSupported, isSubscribed, subscribe, unsubscribe } =
     usePushNotifications();
 
@@ -103,9 +106,21 @@ export default function Chat() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-gray-900 text-white">
+    <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-80 bg-gray-800 flex flex-col border-r border-gray-700">
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 w-80 bg-gray-800 flex flex-col border-r border-gray-700 transform transition-transform duration-200 ease-in-out md:relative md:translate-x-0 ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
         <div className="p-4 flex items-center justify-between border-b border-gray-700">
           <h2 className="text-lg font-bold">ChatApp</h2>
           <div className="flex items-center gap-2">
@@ -147,12 +162,14 @@ export default function Chat() {
         <div className="p-3">
           <input
             type="text"
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
             placeholder="Search conversations..."
             className="w-full px-3 py-2 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
           />
         </div>
 
-        <ConversationList />
+        <ConversationList onSelect={() => setSidebarOpen(false)} />
 
         <div className="p-4 border-t border-gray-700 flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold">
@@ -201,7 +218,7 @@ export default function Chat() {
       </aside>
 
       {/* Chat area */}
-      <ChatWindow />
+      <ChatWindow onOpenSidebar={() => setSidebarOpen(true)} />
 
       {/* New chat modal */}
       {showNewChat && <NewChatModal onClose={() => setShowNewChat(false)} />}

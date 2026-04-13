@@ -11,6 +11,8 @@ const useChatStore = create((set, get) => ({
   pagination: null,
   onlineUsers: {},       // { [userId]: boolean }
   typingUsers: {},       // { [conversationId]: Set-like [userId, ...] }
+  unreadCounts: {},      // { [conversationId]: number }
+  searchFilter: '',      // conversation search filter
 
   // Fetch all conversations for the sidebar
   fetchConversations: async () => {
@@ -35,7 +37,12 @@ const useChatStore = create((set, get) => ({
       socket.emit('leave_conversation', prev._id);
     }
 
-    set({ activeConversation: conversation, messages: [], pagination: null });
+    set((state) => ({
+      activeConversation: conversation,
+      messages: [],
+      pagination: null,
+      unreadCounts: { ...state.unreadCounts, [conversation._id]: 0 },
+    }));
 
     // Join new room
     if (socket) {
@@ -79,11 +86,43 @@ const useChatStore = create((set, get) => ({
     await get().fetchMessages(activeConversation._id, pagination.page + 1);
   },
 
-  // Send message via socket (with optional file)
+  // Set conversation search filter
+  setSearchFilter: (filter) => set({ searchFilter: filter }),
+
+  // Get filtered conversations
+  getFilteredConversations: () => {
+    const { conversations, searchFilter } = get();
+    if (!searchFilter.trim()) return conversations;
+    const q = searchFilter.toLowerCase();
+    return conversations.filter((c) => {
+      if (c.name && c.name.toLowerCase().includes(q)) return true;
+      return c.members?.some((m) => m.name?.toLowerCase().includes(q));
+    });
+  },
+
+  // Send message via socket (with optional file) + optimistic update
   sendMessage: (content, fileData) => {
     const socket = getSocket();
     const { activeConversation } = get();
     if (!socket || !activeConversation) return;
+
+    const tempId = `temp-${Date.now()}`;
+    const currentUser = JSON.parse(localStorage.getItem('accessToken') ? '{}' : '{}');
+
+    // Optimistic: add pending message immediately
+    set((state) => ({
+      messages: [...state.messages, {
+        _id: tempId,
+        conversation: activeConversation._id,
+        sender: { _id: 'self', name: '' },
+        content,
+        ...(fileData && { fileUrl: fileData.fileUrl, fileName: fileData.fileName, fileType: fileData.fileType }),
+        reactions: [],
+        readBy: [],
+        createdAt: new Date().toISOString(),
+        _pending: true,
+      }],
+    }));
 
     socket.emit('send_message', {
       conversationId: activeConversation._id,
@@ -151,8 +190,21 @@ const useChatStore = create((set, get) => ({
   handleNewMessage: (data) => {
     const { activeConversation } = get();
     if (activeConversation && data.conversationId === activeConversation._id) {
+      set((state) => {
+        // Replace optimistic (pending) message if it matches
+        const pending = state.messages.find((m) => m._pending && m.content === data.message.content);
+        if (pending) {
+          return { messages: state.messages.map((m) => m._id === pending._id ? data.message : m) };
+        }
+        return { messages: [...state.messages, data.message] };
+      });
+    } else {
+      // Increment unread count for non-active conversation
       set((state) => ({
-        messages: [...state.messages, data.message],
+        unreadCounts: {
+          ...state.unreadCounts,
+          [data.conversationId]: (state.unreadCounts[data.conversationId] || 0) + 1,
+        },
       }));
     }
   },

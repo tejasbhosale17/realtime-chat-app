@@ -7,7 +7,7 @@ import TypingIndicator from "./TypingIndicator";
 import OnlineBadge from "./OnlineBadge";
 import GroupManagement from "./GroupManagement";
 
-export default function ChatWindow() {
+export default function ChatWindow({ onOpenSidebar }) {
   const activeConversation = useChatStore((s) => s.activeConversation);
   const currentUser = useAuthStore((s) => s.user);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
@@ -16,6 +16,25 @@ export default function ChatWindow() {
     return (
       <main className="flex-1 flex items-center justify-center">
         <div className="text-center text-gray-500">
+          <button
+            onClick={onOpenSidebar}
+            className="md:hidden mb-4 text-gray-400 hover:text-white transition"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-8 h-8 mx-auto"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          </button>
           <p className="text-xl">Welcome, {currentUser?.name}!</p>
           <p className="text-sm mt-2">
             Select a conversation or start a new chat
@@ -34,9 +53,28 @@ export default function ChatWindow() {
   };
 
   return (
-    <main className="flex-1 flex flex-col">
+    <main className="flex-1 flex flex-col min-w-0">
       {/* Chat header */}
-      <div className="px-6 py-4 border-b border-gray-700 flex items-center gap-3">
+      <div className="px-4 md:px-6 py-4 border-b border-gray-700 flex items-center gap-3">
+        <button
+          onClick={onOpenSidebar}
+          className="md:hidden text-gray-400 hover:text-white transition flex-shrink-0"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-6 h-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 6h16M4 12h16M4 18h16"
+            />
+          </svg>
+        </button>
         <div className="relative">
           <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-sm">
             {getTitle()[0]?.toUpperCase()}

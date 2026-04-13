@@ -149,15 +149,17 @@ function MessageBubble({ msg, isOwn, activeConversation, currentUser }) {
 
   return (
     <div
-      className={`flex ${isOwn ? "justify-end" : "justify-start"} group`}
+      className={`flex ${isOwn || msg._pending ? "justify-end" : "justify-start"} group`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => {
         setShowActions(false);
       }}
     >
-      <div className="relative max-w-[70%]">
+      <div
+        className={`relative max-w-[70%] ${msg._pending ? "opacity-60" : ""}`}
+      >
         {/* Action buttons (hover) */}
-        {isOwn && showActions && !editing && (
+        {isOwn && showActions && !editing && !msg._pending && (
           <div
             className={`absolute -top-3 ${isOwn ? "right-0" : "left-0"} flex gap-1 bg-gray-700 rounded-lg shadow-lg px-1 py-0.5 z-10`}
           >
@@ -227,31 +229,39 @@ function MessageBubble({ msg, isOwn, activeConversation, currentUser }) {
           )}
 
           <div className="flex items-center justify-end gap-1 mt-1">
-            {msg.editedAt && (
-              <span className="text-[10px] text-gray-400">edited</span>
+            {msg._pending ? (
+              <span className="text-[10px] text-gray-400 italic">
+                Sending...
+              </span>
+            ) : (
+              <>
+                {msg.editedAt && (
+                  <span className="text-[10px] text-gray-400">edited</span>
+                )}
+                <span className="text-[10px] text-gray-400">
+                  {new Date(msg.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+                {(isOwn || msg.sender?._id === currentUser?._id) &&
+                  (() => {
+                    const otherMembers = (
+                      activeConversation?.members || []
+                    ).filter((m) => m._id !== currentUser?._id);
+                    const allRead =
+                      otherMembers.length > 0 &&
+                      otherMembers.every((m) => msg.readBy?.includes(m._id));
+                    return (
+                      <span
+                        className={`text-[10px] ml-0.5 ${allRead ? "text-blue-400" : "text-gray-500"}`}
+                      >
+                        {allRead ? "\u2713\u2713" : "\u2713"}
+                      </span>
+                    );
+                  })()}
+              </>
             )}
-            <span className="text-[10px] text-gray-400">
-              {new Date(msg.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
-            {isOwn &&
-              (() => {
-                const otherMembers = (activeConversation?.members || []).filter(
-                  (m) => m._id !== currentUser?._id,
-                );
-                const allRead =
-                  otherMembers.length > 0 &&
-                  otherMembers.every((m) => msg.readBy?.includes(m._id));
-                return (
-                  <span
-                    className={`text-[10px] ml-0.5 ${allRead ? "text-blue-400" : "text-gray-500"}`}
-                  >
-                    {allRead ? "\u2713\u2713" : "\u2713"}
-                  </span>
-                );
-              })()}
           </div>
         </div>
 
@@ -282,7 +292,7 @@ export default function MessageList() {
   const hasMore = pagination && pagination.page < pagination.pages;
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+    <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
       {hasMore && (
         <div className="text-center">
           <button
@@ -295,8 +305,22 @@ export default function MessageList() {
       )}
 
       {loading && messages.length === 0 && (
-        <div className="flex justify-center py-10">
-          <div className="animate-spin w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full" />
+        <div className="space-y-4 py-4">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className={`flex ${i % 3 === 0 ? "justify-end" : "justify-start"} animate-pulse`}
+            >
+              <div
+                className={`max-w-[60%] space-y-2 ${i % 3 === 0 ? "items-end" : "items-start"} flex flex-col`}
+              >
+                <div className="h-3 bg-gray-700 rounded w-16" />
+                <div
+                  className={`h-10 ${i % 2 === 0 ? "bg-indigo-600/30" : "bg-gray-700"} rounded-2xl w-48`}
+                />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
@@ -307,15 +331,16 @@ export default function MessageList() {
       )}
 
       {messages.map((msg) => {
-        const isOwn = msg.sender?._id === currentUser?._id;
+        const isOwn = msg.sender?._id === currentUser?._id || msg._pending;
         return (
-          <MessageBubble
-            key={msg._id}
-            msg={msg}
-            isOwn={isOwn}
-            activeConversation={activeConversation}
-            currentUser={currentUser}
-          />
+          <div key={msg._id} className="animate-fade-in-up">
+            <MessageBubble
+              msg={msg}
+              isOwn={isOwn}
+              activeConversation={activeConversation}
+              currentUser={currentUser}
+            />
+          </div>
         );
       })}
       <div ref={bottomRef} />
