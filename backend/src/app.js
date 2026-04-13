@@ -8,6 +8,7 @@ const authRoutes = require('./routes/authRoutes');
 const conversationRoutes = require('./routes/conversationRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const presenceRoutes = require('./routes/presenceRoutes');
+const friendRoutes = require('./routes/friendRoutes');
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/conversations', conversationRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/presence', presenceRoutes);
+app.use('/api/friends', friendRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

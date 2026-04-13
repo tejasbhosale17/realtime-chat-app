@@ -240,6 +240,77 @@ const useChatStore = create((set, get) => ({
       }),
     }));
   },
+
+  // --- Group Events ---
+
+  handleGroupMemberAdded: (data) => {
+    set((state) => {
+      const convs = state.conversations.map((c) =>
+        c._id === data.conversation._id ? data.conversation : c
+      );
+      // If user was added to a new group, prepend it
+      if (!state.conversations.some((c) => c._id === data.conversation._id)) {
+        convs.unshift(data.conversation);
+      }
+      const active =
+        state.activeConversation?._id === data.conversation._id
+          ? data.conversation
+          : state.activeConversation;
+      return { conversations: convs, activeConversation: active };
+    });
+  },
+
+  handleGroupMemberRemoved: (data) => {
+    set((state) => {
+      const convs = state.conversations.map((c) =>
+        c._id === data.conversation._id ? data.conversation : c
+      );
+      const active =
+        state.activeConversation?._id === data.conversation._id
+          ? data.conversation
+          : state.activeConversation;
+      return { conversations: convs, activeConversation: active };
+    });
+  },
+
+  handleRemovedFromGroup: (data) => {
+    set((state) => {
+      const convs = state.conversations.filter(
+        (c) => c._id !== data.conversationId
+      );
+      const active =
+        state.activeConversation?._id === data.conversationId
+          ? null
+          : state.activeConversation;
+      return { conversations: convs, activeConversation: active, ...(active === null ? { messages: [] } : {}) };
+    });
+  },
+
+  handleGroupMemberLeft: (data) => {
+    set((state) => {
+      const convs = state.conversations.map((c) =>
+        c._id === data.conversation._id ? data.conversation : c
+      );
+      const active =
+        state.activeConversation?._id === data.conversation._id
+          ? data.conversation
+          : state.activeConversation;
+      return { conversations: convs, activeConversation: active };
+    });
+  },
+
+  handleGroupUpdated: (data) => {
+    set((state) => {
+      const convs = state.conversations.map((c) =>
+        c._id === data.conversation._id ? data.conversation : c
+      );
+      const active =
+        state.activeConversation?._id === data.conversation._id
+          ? data.conversation
+          : state.activeConversation;
+      return { conversations: convs, activeConversation: active };
+    });
+  },
 }));
 
 export default useChatStore;

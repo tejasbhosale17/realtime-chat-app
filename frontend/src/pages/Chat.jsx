@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import useAuthStore from "../store/authStore";
 import useChatStore from "../store/chatStore";
+import useFriendStore from "../store/friendStore";
 import { connectSocket, disconnectSocket } from "../services/socket";
 import ConversationList from "../components/ConversationList";
 import ChatWindow from "../components/ChatWindow";
 import NewChatModal from "../components/NewChatModal";
+import FriendsPanel from "../components/FriendsPanel";
 
 export default function Chat() {
   const user = useAuthStore((s) => s.user);
@@ -24,7 +26,21 @@ export default function Chat() {
   const handleUserOffline = useChatStore((s) => s.handleUserOffline);
   const handleMessagesRead = useChatStore((s) => s.handleMessagesRead);
   const fetchOnlineStatuses = useChatStore((s) => s.fetchOnlineStatuses);
+  const handleGroupMemberAdded = useChatStore((s) => s.handleGroupMemberAdded);
+  const handleGroupMemberRemoved = useChatStore(
+    (s) => s.handleGroupMemberRemoved,
+  );
+  const handleRemovedFromGroup = useChatStore((s) => s.handleRemovedFromGroup);
+  const handleGroupMemberLeft = useChatStore((s) => s.handleGroupMemberLeft);
+  const handleGroupUpdated = useChatStore((s) => s.handleGroupUpdated);
+  const handleFriendRequestReceived = useFriendStore(
+    (s) => s.handleFriendRequestReceived,
+  );
+  const handleFriendRequestAccepted = useFriendStore(
+    (s) => s.handleFriendRequestAccepted,
+  );
   const [showNewChat, setShowNewChat] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
 
   useEffect(() => {
     fetchConversations().then(() => {
@@ -48,6 +64,13 @@ export default function Chat() {
       socket.on("user_online", handleUserOnline);
       socket.on("user_offline", handleUserOffline);
       socket.on("messages_read", handleMessagesRead);
+      socket.on("group_member_added", handleGroupMemberAdded);
+      socket.on("group_member_removed", handleGroupMemberRemoved);
+      socket.on("removed_from_group", handleRemovedFromGroup);
+      socket.on("group_member_left", handleGroupMemberLeft);
+      socket.on("group_updated", handleGroupUpdated);
+      socket.on("friend_request_received", handleFriendRequestReceived);
+      socket.on("friend_request_accepted", handleFriendRequestAccepted);
 
       return () => {
         socket.off("new_message", handleNewMessage);
@@ -59,6 +82,13 @@ export default function Chat() {
         socket.off("user_online", handleUserOnline);
         socket.off("user_offline", handleUserOffline);
         socket.off("messages_read", handleMessagesRead);
+        socket.off("group_member_added", handleGroupMemberAdded);
+        socket.off("group_member_removed", handleGroupMemberRemoved);
+        socket.off("removed_from_group", handleRemovedFromGroup);
+        socket.off("group_member_left", handleGroupMemberLeft);
+        socket.off("group_updated", handleGroupUpdated);
+        socket.off("friend_request_received", handleFriendRequestReceived);
+        socket.off("friend_request_accepted", handleFriendRequestAccepted);
         disconnectSocket();
       };
     }
@@ -71,6 +101,26 @@ export default function Chat() {
         <div className="p-4 flex items-center justify-between border-b border-gray-700">
           <h2 className="text-lg font-bold">ChatApp</h2>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFriends(true)}
+              className="text-sm text-gray-300 hover:text-white px-2 py-1.5 rounded-lg hover:bg-gray-700 transition"
+              title="Friends"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+            </button>
             <button
               onClick={() => setShowNewChat(true)}
               className="text-sm bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition"
@@ -112,6 +162,9 @@ export default function Chat() {
 
       {/* New chat modal */}
       {showNewChat && <NewChatModal onClose={() => setShowNewChat(false)} />}
+
+      {/* Friends panel */}
+      {showFriends && <FriendsPanel onClose={() => setShowFriends(false)} />}
     </div>
   );
 }

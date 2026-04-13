@@ -111,4 +111,166 @@ const searchUsers = async (req, res, next) => {
   }
 };
 
-module.exports = { createConversation, getConversations, getConversation, searchUsers };
+module.exports = { createConversation, getConversations, getConversation, searchUsers, addGroupMember, removeGroupMember, leaveGroup, updateGroup };
+
+// PUT /api/conversations/:id/members — add member to group
+async function addGroupMember(req, res, next) {
+  try {
+    const { userId: newMemberId } = req.body;
+    const conversation = await Conversation.findById(req.params.id);
+
+    if (!conversation || conversation.type !== 'group') {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+    if (!conversation.admins.includes(req.userId)) {
+      return res.status(403).json({ message: 'Only admins can add members' });
+    }
+
+    if (conversation.members.includes(newMemberId)) {
+      return res.status(400).json({ message: 'User already in group' });
+    }
+
+    const user = await User.findById(newMemberId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    conversation.members.push(newMemberId);
+    await conversation.save();
+
+    const populated = await conversation.populate('members', 'name email avatar');
+
+    // Notify group members
+    const { getIO } = require('../socket/index');
+    const io = getIO();
+    io.to(`conv:${conversation._id}`).emit('group_member_added', {
+      conversationId: conversation._id,
+      conversation: populated,
+      addedUserId: newMemberId,
+    });
+
+    res.json({ conversation: populated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /api/conversations/:id/members/:memberId — remove member from group
+async function removeGroupMember(req, res, next) {
+  try {
+    const { memberId } = req.params;
+    const conversation = await Conversation.findById(req.params.id);
+
+    if (!conversation || conversation.type !== 'group') {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+    if (!conversation.admins.includes(req.userId)) {
+      return res.status(403).json({ message: 'Only admins can remove members' });
+    }
+
+    if (memberId === req.userId) {
+      return res.status(400).json({ message: 'Use leave endpoint to leave the group' });
+    }
+
+    conversation.members = conversation.members.filter((m) => m.toString() !== memberId);
+    conversation.admins = conversation.admins.filter((a) => a.toString() !== memberId);
+    await conversation.save();
+
+    const populated = await conversation.populate('members', 'name email avatar');
+
+    const { getIO } = require('../socket/index');
+    const io = getIO();
+    io.to(`conv:${conversation._id}`).emit('group_member_removed', {
+      conversationId: conversation._id,
+      conversation: populated,
+      removedUserId: memberId,
+    });
+    // Also notify the removed user
+    io.to(`user:${memberId}`).emit('removed_from_group', {
+      conversationId: conversation._id,
+    });
+
+    res.json({ conversation: populated });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/conversations/:id/leave — leave a group
+async function leaveGroup(req, res, next) {
+  try {
+    const conversation = await Conversation.findById(req.params.id);
+
+    if (!conversation || conversation.type !== 'group') {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+    if (!conversation.members.includes(req.userId)) {
+      return res.status(400).json({ message: 'Not a member of this group' });
+    }
+
+    conversation.members = conversation.members.filter((m) => m.toString() !== req.userId);
+    conversation.admins = conversation.admins.filter((a) => a.toString() !== req.userId);
+
+    // If no admins left, promote first remaining member
+    if (conversation.admins.length === 0 && conversation.members.length > 0) {
+      conversation.admins.push(conversation.members[0]);
+    }
+
+    // Delete group if empty
+    if (conversation.members.length === 0) {
+      await conversation.deleteOne();
+      return res.json({ message: 'Group deleted (no members left)' });
+    }
+
+    await conversation.save();
+    const populated = await conversation.populate('members', 'name email avatar');
+
+    const { getIO } = require('../socket/index');
+    const io = getIO();
+    io.to(`conv:${conversation._id}`).emit('group_member_left', {
+      conversationId: conversation._id,
+      conversation: populated,
+      leftUserId: req.userId,
+    });
+
+    res.json({ message: 'Left group' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PUT /api/conversations/:id — update group name/avatar
+async function updateGroup(req, res, next) {
+  try {
+    const { name, avatar } = req.body;
+    const conversation = await Conversation.findById(req.params.id);
+
+    if (!conversation || conversation.type !== 'group') {
+      return res.status(404).json({ message: 'Group not found' });
+    }
+
+    if (!conversation.admins.includes(req.userId)) {
+      return res.status(403).json({ message: 'Only admins can update group' });
+    }
+
+    if (name?.trim()) conversation.name = name.trim();
+    if (avatar !== undefined) conversation.avatar = avatar;
+    await conversation.save();
+
+    const populated = await conversation.populate('members', 'name email avatar');
+
+    const { getIO } = require('../socket/index');
+    const io = getIO();
+    io.to(`conv:${conversation._id}`).emit('group_updated', {
+      conversationId: conversation._id,
+      conversation: populated,
+    });
+
+    res.json({ conversation: populated });
+  } catch (err) {
+    next(err);
+  }
+}
