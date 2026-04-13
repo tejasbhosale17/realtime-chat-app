@@ -9,6 +9,8 @@ const useChatStore = create((set, get) => ({
   loadingConversations: false,
   loadingMessages: false,
   pagination: null,
+  onlineUsers: {},       // { [userId]: boolean }
+  typingUsers: {},       // { [conversationId]: Set-like [userId, ...] }
 
   // Fetch all conversations for the sidebar
   fetchConversations: async () => {
@@ -42,6 +44,11 @@ const useChatStore = create((set, get) => ({
 
     // Fetch messages
     await get().fetchMessages(conversation._id);
+
+    // Mark messages as read
+    if (socket) {
+      socket.emit('message_read', { conversationId: conversation._id });
+    }
   },
 
   // Fetch messages with pagination
@@ -149,6 +156,88 @@ const useChatStore = create((set, get) => ({
   handleMessageDeleted: (data) => {
     set((state) => ({
       messages: state.messages.filter((m) => m._id !== data.messageId),
+    }));
+  },
+
+  // --- Typing ---
+
+  emitTypingStart: () => {
+    const socket = getSocket();
+    const { activeConversation } = get();
+    if (!socket || !activeConversation) return;
+    socket.emit('typing_start', { conversationId: activeConversation._id });
+  },
+
+  emitTypingStop: () => {
+    const socket = getSocket();
+    const { activeConversation } = get();
+    if (!socket || !activeConversation) return;
+    socket.emit('typing_stop', { conversationId: activeConversation._id });
+  },
+
+  handleUserTyping: (data) => {
+    set((state) => {
+      const current = state.typingUsers[data.conversationId] || [];
+      if (current.includes(data.userId)) return {};
+      return {
+        typingUsers: {
+          ...state.typingUsers,
+          [data.conversationId]: [...current, data.userId],
+        },
+      };
+    });
+  },
+
+  handleUserStoppedTyping: (data) => {
+    set((state) => {
+      const current = state.typingUsers[data.conversationId] || [];
+      return {
+        typingUsers: {
+          ...state.typingUsers,
+          [data.conversationId]: current.filter((id) => id !== data.userId),
+        },
+      };
+    });
+  },
+
+  // --- Presence ---
+
+  handleUserOnline: (data) => {
+    set((state) => ({
+      onlineUsers: { ...state.onlineUsers, [data.userId]: true },
+    }));
+  },
+
+  handleUserOffline: (data) => {
+    set((state) => ({
+      onlineUsers: { ...state.onlineUsers, [data.userId]: false },
+    }));
+  },
+
+  fetchOnlineStatuses: async (userIds) => {
+    try {
+      const { data } = await api.post('/presence/online', { userIds });
+      set((state) => ({
+        onlineUsers: { ...state.onlineUsers, ...data.online },
+      }));
+    } catch (err) {
+      console.error('fetchOnlineStatuses error:', err);
+    }
+  },
+
+  // --- Read Receipts ---
+
+  handleMessagesRead: (data) => {
+    set((state) => ({
+      messages: state.messages.map((m) => {
+        if (
+          m.conversation === data.conversationId &&
+          !m.readBy?.includes(data.readBy)
+        ) {
+          return { ...m, readBy: [...(m.readBy || []), data.readBy] };
+        }
+        return m;
+      }),
     }));
   },
 }));

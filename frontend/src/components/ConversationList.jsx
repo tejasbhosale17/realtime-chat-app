@@ -1,5 +1,6 @@
 import useChatStore from "../store/chatStore";
 import useAuthStore from "../store/authStore";
+import OnlineBadge from "./OnlineBadge";
 
 export default function ConversationList() {
   const conversations = useChatStore((s) => s.conversations);
@@ -59,6 +60,17 @@ export default function ConversationList() {
             <div className="w-10 h-10 rounded-full bg-indigo-600 flex-shrink-0 flex items-center justify-center font-bold text-sm">
               {getAvatar(conv)}
             </div>
+            {conv.type === "dm" &&
+              (() => {
+                const other = conv.members?.find(
+                  (m) => m._id !== currentUser?._id,
+                );
+                return other ? (
+                  <span className="absolute -bottom-0.5 -right-0.5">
+                    <OnlineBadge userId={other._id} />
+                  </span>
+                ) : null;
+              })()}
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm truncate">

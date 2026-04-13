@@ -1,15 +1,28 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import useChatStore from "../store/chatStore";
 
 export default function MessageInput() {
   const [text, setText] = useState("");
   const sendMessage = useChatStore((s) => s.sendMessage);
+  const emitTypingStart = useChatStore((s) => s.emitTypingStart);
+  const emitTypingStop = useChatStore((s) => s.emitTypingStop);
+  const typingTimeout = useRef(null);
+
+  const handleTyping = useCallback(() => {
+    emitTypingStart();
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
+    typingTimeout.current = setTimeout(() => {
+      emitTypingStop();
+    }, 2000);
+  }, [emitTypingStart, emitTypingStop]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!text.trim()) return;
     sendMessage(text.trim());
     setText("");
+    emitTypingStop();
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
   };
 
   return (
@@ -20,7 +33,10 @@ export default function MessageInput() {
       <input
         type="text"
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => {
+          setText(e.target.value);
+          if (e.target.value) handleTyping();
+        }}
         placeholder="Type a message..."
         className="flex-1 px-4 py-3 rounded-xl bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
       />

@@ -2,6 +2,8 @@ import useChatStore from "../store/chatStore";
 import useAuthStore from "../store/authStore";
 import MessageList from "./MessageList";
 import MessageInput from "./MessageInput";
+import TypingIndicator from "./TypingIndicator";
+import OnlineBadge from "./OnlineBadge";
 
 export default function ChatWindow() {
   const activeConversation = useChatStore((s) => s.activeConversation);
@@ -36,6 +38,17 @@ export default function ChatWindow() {
           <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-sm">
             {getTitle()[0]?.toUpperCase()}
           </div>
+          {activeConversation.type === "dm" &&
+            (() => {
+              const other = activeConversation.members?.find(
+                (m) => m._id !== currentUser?._id,
+              );
+              return other ? (
+                <span className="absolute -bottom-0.5 -right-0.5">
+                  <OnlineBadge userId={other._id} size="md" />
+                </span>
+              ) : null;
+            })()}
         </div>
         <div>
           <p className="font-semibold text-sm">{getTitle()}</p>
@@ -47,6 +60,7 @@ export default function ChatWindow() {
       </div>
 
       <MessageList />
+      <TypingIndicator />
       <MessageInput />
     </main>
   );

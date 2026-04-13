@@ -3,6 +3,9 @@ const { createAdapter } = require('@socket.io/redis-adapter');
 const { getRedis } = require('../utils/redis');
 const { verifyAccessToken } = require('../utils/jwt');
 const { registerMessageHandlers } = require('./messageHandlers');
+const { registerTypingHandlers } = require('./typingHandlers');
+const { registerReadReceiptHandlers } = require('./readReceiptHandlers');
+const { setUserOnline, setUserOffline } = require('../services/presenceService');
 
 let io;
 
@@ -41,9 +44,8 @@ const initSocket = (httpServer) => {
     // Join a personal room for DM targeting
     socket.join(`user:${socket.userId}`);
 
-    // Track online status in Redis
-    const redis = getRedis();
-    redis.set(`presence:${socket.userId}`, 'online', 'EX', 300);
+    // Mark user online via presence service
+    setUserOnline(socket.userId);
 
     // Broadcast online status
     socket.broadcast.emit('user_online', { userId: socket.userId });
@@ -61,10 +63,16 @@ const initSocket = (httpServer) => {
     // Register message handlers (send, edit, delete)
     registerMessageHandlers(io, socket);
 
+    // Register typing handlers
+    registerTypingHandlers(io, socket);
+
+    // Register read receipt handlers
+    registerReadReceiptHandlers(io, socket);
+
     // Disconnect
     socket.on('disconnect', async () => {
       console.log(`User disconnected: ${socket.userId}`);
-      await redis.del(`presence:${socket.userId}`);
+      await setUserOffline(socket.userId);
       socket.broadcast.emit('user_offline', { userId: socket.userId });
     });
   });

@@ -16,10 +16,24 @@ export default function Chat() {
   );
   const handleMessageUpdated = useChatStore((s) => s.handleMessageUpdated);
   const handleMessageDeleted = useChatStore((s) => s.handleMessageDeleted);
+  const handleUserTyping = useChatStore((s) => s.handleUserTyping);
+  const handleUserStoppedTyping = useChatStore(
+    (s) => s.handleUserStoppedTyping,
+  );
+  const handleUserOnline = useChatStore((s) => s.handleUserOnline);
+  const handleUserOffline = useChatStore((s) => s.handleUserOffline);
+  const handleMessagesRead = useChatStore((s) => s.handleMessagesRead);
+  const fetchOnlineStatuses = useChatStore((s) => s.fetchOnlineStatuses);
   const [showNewChat, setShowNewChat] = useState(false);
 
   useEffect(() => {
-    fetchConversations();
+    fetchConversations().then(() => {
+      const convs = useChatStore.getState().conversations;
+      const memberIds = [
+        ...new Set(convs.flatMap((c) => c.members.map((m) => m._id))),
+      ];
+      if (memberIds.length) fetchOnlineStatuses(memberIds);
+    });
 
     const token = localStorage.getItem("accessToken");
     if (token) {
@@ -29,12 +43,22 @@ export default function Chat() {
       socket.on("conversation_updated", handleConversationUpdated);
       socket.on("message_updated", handleMessageUpdated);
       socket.on("message_deleted", handleMessageDeleted);
+      socket.on("user_typing", handleUserTyping);
+      socket.on("user_stopped_typing", handleUserStoppedTyping);
+      socket.on("user_online", handleUserOnline);
+      socket.on("user_offline", handleUserOffline);
+      socket.on("messages_read", handleMessagesRead);
 
       return () => {
         socket.off("new_message", handleNewMessage);
         socket.off("conversation_updated", handleConversationUpdated);
         socket.off("message_updated", handleMessageUpdated);
         socket.off("message_deleted", handleMessageDeleted);
+        socket.off("user_typing", handleUserTyping);
+        socket.off("user_stopped_typing", handleUserStoppedTyping);
+        socket.off("user_online", handleUserOnline);
+        socket.off("user_offline", handleUserOffline);
+        socket.off("messages_read", handleMessagesRead);
         disconnectSocket();
       };
     }

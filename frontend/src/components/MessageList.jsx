@@ -7,6 +7,7 @@ export default function MessageList() {
   const loading = useChatStore((s) => s.loadingMessages);
   const pagination = useChatStore((s) => s.pagination);
   const loadMore = useChatStore((s) => s.loadMoreMessages);
+  const activeConversation = useChatStore((s) => s.activeConversation);
   const currentUser = useAuthStore((s) => s.user);
   const bottomRef = useRef(null);
 
@@ -71,6 +72,22 @@ export default function MessageList() {
                     minute: "2-digit",
                   })}
                 </span>
+                {isOwn &&
+                  (() => {
+                    const otherMembers = (
+                      activeConversation?.members || []
+                    ).filter((m) => m._id !== currentUser?._id);
+                    const allRead =
+                      otherMembers.length > 0 &&
+                      otherMembers.every((m) => msg.readBy?.includes(m._id));
+                    return (
+                      <span
+                        className={`text-[10px] ml-0.5 ${allRead ? "text-blue-400" : "text-gray-500"}`}
+                      >
+                        {allRead ? "\u2713\u2713" : "\u2713"}
+                      </span>
+                    );
+                  })()}
               </div>
             </div>
           </div>
