@@ -79,8 +79,8 @@ const useChatStore = create((set, get) => ({
     await get().fetchMessages(activeConversation._id, pagination.page + 1);
   },
 
-  // Send message via socket
-  sendMessage: (content) => {
+  // Send message via socket (with optional file)
+  sendMessage: (content, fileData) => {
     const socket = getSocket();
     const { activeConversation } = get();
     if (!socket || !activeConversation) return;
@@ -88,7 +88,22 @@ const useChatStore = create((set, get) => ({
     socket.emit('send_message', {
       conversationId: activeConversation._id,
       content,
+      ...(fileData && {
+        fileUrl: fileData.fileUrl,
+        fileName: fileData.fileName,
+        fileType: fileData.fileType,
+      }),
     });
+  },
+
+  // Upload a file via REST, returns file metadata
+  uploadFile: async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post('/files/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
   },
 
   // Edit message via socket
@@ -103,6 +118,13 @@ const useChatStore = create((set, get) => ({
     const socket = getSocket();
     if (!socket) return;
     socket.emit('message_delete', { messageId });
+  },
+
+  // Toggle reaction on a message
+  toggleReaction: (messageId, emoji) => {
+    const socket = getSocket();
+    if (!socket) return;
+    socket.emit('message_reaction', { messageId, emoji });
   },
 
   // Create a new conversation (DM or group)
@@ -156,6 +178,14 @@ const useChatStore = create((set, get) => ({
   handleMessageDeleted: (data) => {
     set((state) => ({
       messages: state.messages.filter((m) => m._id !== data.messageId),
+    }));
+  },
+
+  handleMessageReactionUpdated: (data) => {
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m._id === data.message._id ? data.message : m
+      ),
     }));
   },
 
