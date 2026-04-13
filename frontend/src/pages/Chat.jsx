@@ -7,6 +7,7 @@ import ConversationList from "../components/ConversationList";
 import ChatWindow from "../components/ChatWindow";
 import NewChatModal from "../components/NewChatModal";
 import FriendsPanel from "../components/FriendsPanel";
+import usePushNotifications from "../hooks/usePushNotifications";
 
 export default function Chat() {
   const user = useAuthStore((s) => s.user);
@@ -33,6 +34,9 @@ export default function Chat() {
   const handleRemovedFromGroup = useChatStore((s) => s.handleRemovedFromGroup);
   const handleGroupMemberLeft = useChatStore((s) => s.handleGroupMemberLeft);
   const handleGroupUpdated = useChatStore((s) => s.handleGroupUpdated);
+  const handleMessageReactionUpdated = useChatStore(
+    (s) => s.handleMessageReactionUpdated,
+  );
   const handleFriendRequestReceived = useFriendStore(
     (s) => s.handleFriendRequestReceived,
   );
@@ -41,6 +45,8 @@ export default function Chat() {
   );
   const [showNewChat, setShowNewChat] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
+  const { isSupported, isSubscribed, subscribe, unsubscribe } =
+    usePushNotifications();
 
   useEffect(() => {
     fetchConversations().then(() => {
@@ -69,6 +75,7 @@ export default function Chat() {
       socket.on("removed_from_group", handleRemovedFromGroup);
       socket.on("group_member_left", handleGroupMemberLeft);
       socket.on("group_updated", handleGroupUpdated);
+      socket.on("message_reaction_updated", handleMessageReactionUpdated);
       socket.on("friend_request_received", handleFriendRequestReceived);
       socket.on("friend_request_accepted", handleFriendRequestAccepted);
 
@@ -87,6 +94,7 @@ export default function Chat() {
         socket.off("removed_from_group", handleRemovedFromGroup);
         socket.off("group_member_left", handleGroupMemberLeft);
         socket.off("group_updated", handleGroupUpdated);
+        socket.off("message_reaction_updated", handleMessageReactionUpdated);
         socket.off("friend_request_received", handleFriendRequestReceived);
         socket.off("friend_request_accepted", handleFriendRequestAccepted);
         disconnectSocket();
@@ -150,10 +158,45 @@ export default function Chat() {
           <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold">
             {user?.name?.[0]?.toUpperCase()}
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="font-medium text-sm">{user?.name}</p>
-            <p className="text-xs text-gray-400">{user?.email}</p>
+            <p className="text-xs text-gray-400 truncate">{user?.email}</p>
           </div>
+          {isSupported && (
+            <button
+              onClick={isSubscribed ? unsubscribe : subscribe}
+              className="text-gray-400 hover:text-white transition"
+              title={
+                isSubscribed ? "Disable notifications" : "Enable notifications"
+              }
+            >
+              {isSubscribed ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-5 h-5"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M12 2a7 7 0 00-7 7v4.28l-1.71 1.71A1 1 0 004 17h16a1 1 0 00.71-1.71L19 13.28V9a7 7 0 00-7-7zm0 20a2 2 0 01-2-2h4a2 2 0 01-2 2z" />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                  />
+                </svg>
+              )}
+            </button>
+          )}
         </div>
       </aside>
 

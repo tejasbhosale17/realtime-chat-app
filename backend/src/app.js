@@ -9,6 +9,8 @@ const conversationRoutes = require('./routes/conversationRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const presenceRoutes = require('./routes/presenceRoutes');
 const friendRoutes = require('./routes/friendRoutes');
+const fileRoutes = require('./routes/fileRoutes');
+const pushRoutes = require('./routes/pushRoutes');
 
 const app = express();
 
@@ -33,6 +35,8 @@ app.use('/api/conversations', conversationRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/presence', presenceRoutes);
 app.use('/api/friends', friendRoutes);
+app.use('/api/files', fileRoutes);
+app.use('/api/push', pushRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);
